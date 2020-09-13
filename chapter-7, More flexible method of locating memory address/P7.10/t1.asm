@@ -1,7 +1,7 @@
 ; 将数据段中每个单词的头一个字母改为大写
 assume cs:codesg, ds:datasg
 
-; 数据段
+; 数据段，以ascii码的形式定义数据
 datasg segment
     db '1. file         '
     db '2. edit         '

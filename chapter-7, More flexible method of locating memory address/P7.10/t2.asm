@@ -1,7 +1,7 @@
-; 将数据段中每个单词的字母改为大写
+; 将数据段中每个单词的字母改为大写，存在外层循环次数会被内层循环覆盖的问题
 assume cs:codesg, ds:datasg
 
-; 数据段
+; 数据段，以ascii码的形式定义数据
 datasg segment
     db 'ibm             '
     db 'dec             '

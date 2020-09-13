@@ -1,7 +1,7 @@
 ; 第 7.7 小节，SI 和 DI，用 si 和 di 将字符串 'welcome to masm!' 复制到它后面的数据区中。
 assume cs:codesg, ds:datasg
 
-; 数据段
+; 数据段，以ascii码的形式定义数据
 datasg segment
     db 'welcome to masm!'
     db '................'
@@ -15,7 +15,7 @@ start:
     mov ds, ax
     mov si, 0
     mov di, 16
-    mov cs, 8
+    mov cx, 8
 
 s:
     mov ax, [si]

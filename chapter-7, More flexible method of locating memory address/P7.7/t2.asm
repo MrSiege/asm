@@ -1,7 +1,7 @@
 ; 用更少的代码实现 t1 的程序
 assume cs:codesg, ds:datasg
 
-; 数据段
+; 数据段，以ascii码的形式定义数据
 datasg segment
     db 'welcome to masm!'
     db '................'
@@ -14,7 +14,7 @@ start:
     mov ax, datasg
     mov ds, ax
     mov si, 0
-    mov cs, 8
+    mov cx, 8
 
 s:
     mov ax, [si + 0]
