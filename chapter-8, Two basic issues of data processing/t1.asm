@@ -41,13 +41,21 @@ start:
 
     mov bx, 0
     mov si, 0
+    mov di, 0
     mov cx, 21              ; 按年份写入数据到table中
 
 next:
-    mov ax, ds:[si].0
-    
+    mov ax, ds:0h[si]       ; 年份
+    mov ax, ds:54h[si]      ; 总收入
+    mov ax, ds:a8h[di]      ; 雇员人数
 
-    add si, 2
+    mov es:[bx].0h, ax      ; 年份项
+    mov es:[bx].5h, ax      ; 收入项
+    mov es:[bx].ah, ax      ; 雇员数项
+    mov es:[bx].dh, ax      ; 人均收入项
+
+    add si, 4
+    add di, 2
     add bx, 16
     loop next                ; 继续写入下一年的数据
 
