@@ -1,7 +1,8 @@
 assume cs:code
 
 data segment
-
+    db 0
+    dw offset start
 data ends
 
 code segment
