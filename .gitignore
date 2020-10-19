@@ -1,1 +1,6 @@
 .vscode/
+MASM6.15/
+*.exe
+*.obj
+*.EXE
+*.OBJ

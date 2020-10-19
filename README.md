@@ -12,10 +12,11 @@
 sudo apt-get install dosbox
 ```
 
-启动 dosbox 后，映射 linux 系统内的路径到 dosbox
+启动 dosbox 后，映射 linux 系统内的路径到 dosbox，并设置masm环境变量
 
 ```shell
-mount c ~/projects/asm
+mount C: /path/to/asm
+set PATH=C:\MASM6.15\BIN
 ```
 
 编译 asm 源程序
