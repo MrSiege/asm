@@ -1,8 +1,6 @@
-include <./subroutines/display_str.asm>
-include <./subroutines/display_clean.asm>
 assume cs:codesg
 
-; 数组型数据段
+; @data-segment
 data segment
     ; 21年的字符串，每行16byte，idata=0h
     db '1975', '1976', '1977', '1978'
@@ -26,12 +24,16 @@ data segment
     dw 8226, 11542, 14430, 15257, 17800
 data ends
 
-; 结构型数据段
+; @data-segment
 table segment
     ; year=0h，income=5h，employee=0ah，average=0dh
     dd 21 dup (0, 0, 0, 0)
 table ends
 
+; @stack-segment
+stack segment
+    db 1024 dup (0)
+stack ends
 
 ; 代码段
 codesg segment
@@ -42,6 +44,10 @@ codesg segment
         mov ax, table
         mov es, ax                   ; 初始化数据段地址
 
+        mov ax, stack
+        mov ss, ax
+        mov sp, 1024                 ; 栈指针
+
         mov bx, 0
         mov bp, 0
         mov cx, 21                   ; 按年份写入数据到table段中
@@ -50,7 +56,7 @@ codesg segment
         mov si, 0
         mov ax, ds:0h[bp][si]
         mov es:[bx].0h[si], ax       ; 写入年份数据的前两个字节
-        
+
         mov ax, ds:54h[bp][si]
         mov es:[bx].5h[si], ax       ; 写入收入数据的前两个字节
 
@@ -85,38 +91,46 @@ codesg segment
         add bx, 16
         loop wirte_employee_num      ; 继续写入下个年份的数据
 
-        
-        call display_clean           ; 清空屏幕
+        call clean                   ; 清空屏幕
         mov cx, 21                   ; 循环21次显示1975~1995年的数据
-        mov dh, 0                    ; 从第一行开始显示
+        mov dh, 1                    ; 从第一行开始显示
         mov bx, 0
-        mov cl, 01110001b            ; 白底蓝字
         mov ax, es
-        mov ds, ax                   ;　段地址与table段一致
+        mov ds, ax
+        mov si, bx                   ;　ds:si -> table:0000
 
+    s:
+        push cx
         mov si, bx
+        mov cl, 2                    ; 白底蓝字
         mov dl, 0
-        call display_str             ; 显示年份
+        call show_str                ; 显示年份
 
         mov si, bx
         add si, 5
         mov dl, 20
-        call display_str             ; 显示收入
+        call show_str                ; 显示收入
 
         mov si, bx
-        add si, 10,                  
+        add si, 10                
         mov dl, 40
-        call display_str             ; 显示雇员数
+        call show_str                ; 显示雇员数
 
         mov si, bx
-        add si, 13,                  
+        add si, 13
         mov dl, 60
-        call display_str             ; 显示人均收入
+        call show_str                ; 显示人均收入
+
+        inc dh
+        add bx, 16
+        pop cx
+        loop s
 
         mov ax, 4c00h
         int 21h
 
-    display_clean:
+    ; @subroutines
+    clean:
         push ax
         push bx
         push cx
@@ -127,18 +141,19 @@ codesg segment
         mov bx, 0
         mov cx, 2000
 
-    display_clean_s:
+    s0:
         mov word ptr es:[bx], 0
         add bx, 2
-        loop display_clean_s
+        loop s0
 
         pop es
         pop cx
         pop bx
-        pop ax                        
-        retf
+        pop ax
+        ret
 
-    display_str:
+    ; @subroutines
+    divdw:
         push ax
         push bx
         push cx
@@ -157,7 +172,7 @@ codesg segment
         add bx, ax
         mov ah, cl
 
-    display_str_s:
+    s1:
         mov al, ds:[si]
         mov es:[bx], ax
         inc si
@@ -166,7 +181,7 @@ codesg segment
         mov cl, al
         mov ch, 0
         inc cx
-        loop display_str_s
+        loop s1
 
         pop si
         pop es
@@ -177,28 +192,7 @@ codesg segment
         pop ax                        
         ret
 
-    divdw:
-        push bx
-        push si
-
-        mov bx, dx
-        mov si, ax
-
-        mov dx, 0
-        mov ax, bx
-        div cx
-        push ax
-
-        mov ax, si
-        div cx
-
-        mov cx, dx
-        pop dx
-
-        pop si
-        pop bx
-        ret
-
+    ; @subroutines
     dtoc:
         push ax
         push bx
@@ -207,30 +201,29 @@ codesg segment
         push si
         mov bx, 0
 
-    dtoc_s:
+    s2:
         mov cx, 10
         call divdw
         inc bx
         push cx
 
-    dtoc_censor_high_bit:
         mov cx, dx
-        jcxz dtoc_censor_low_bit
-        jmp dtoc_s
+        jcxz s3
+        jmp s2
         
-    dtoc_censor_low_bit:
+    s3:
         mov cx, ax
-        jcxz dtoc_ok
-        jmp dtoc_s
+        jcxz ok0
+        jmp s2
         
-    dtoc_ok:
+    ok0:
         mov cx, bx
-    dtoc_s1:
+    s4:
         pop ax
         add ax, 30h
         mov ds:[si], al
         inc si
-        loop dtoc_s1
+        loop s4
 
         mov ax, 0
         mov ds:[si], al
@@ -241,7 +234,46 @@ codesg segment
         pop bx
         pop ax
         ret
+    
+    ; @subroutines
+    show_str:
+        push ax
+        push bx
+        push cx
+        push dx
+        push ds
+        push es
+        push si
 
+        mov ax, 0b800h
+        mov es, ax
+        mov al, 0a0h
+        mul dh
+        mov bx, ax
+        mov al, 2h
+        mul dl
+        add bx, ax
+        mov ah, cl
+
+    s5:
+        mov al, ds:[si]
+        mov es:[bx], ax
+        inc si
+        add bx, 2
+
+        mov cl, al
+        mov ch, 0
+        inc cx
+        loop s5
+
+        pop si
+        pop es
+        pop ds
+        pop dx
+        pop cx
+        pop bx
+        pop ax                        
+        ret
 
 codesg ends
 

@@ -14,21 +14,21 @@ sudo apt-get install dosbox
 
 启动 dosbox 后，映射 linux 系统内的路径到 dosbox，并设置masm环境变量
 
-```shell
-mount C: /path/to/asm
-set PATH=C:\MASM6.15\BIN
+```dos
+MOUNT C: /path/to/asm
+SET PATH=C:\MASM6.15\BIN
 ```
 
 编译 asm 源程序
 
 ```shell
-masm *.asm
+masm *.asm;
 ```
 
 链接 obj 目标文件
 
 ```shell
-link *.obj
+link *.obj;
 ```
 
 调试 exe 程序
