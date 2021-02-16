@@ -30,6 +30,12 @@ table segment
     dd 21 dup (0, 0, 0, 0)
 table ends
 
+; @data-segment
+buffer segment
+    ; year=0h，income=5h，employee=0ah，average=0dh
+    db 64 dup (0)
+buffer ends
+
 ; @stack-segment
 stack segment
     db 1024 dup (0)
@@ -65,7 +71,7 @@ codesg segment
         mov es:[bx].0h[si], ax       ; 写入年份数据的后两个字节
 
         mov ax, ds:54h[bp][si]
-        mov es:[bx].5h[si], ax       ; 写入收入数据的前两个字节
+        mov es:[bx].5h[si], ax       ; 写入收入数据的后两个字节
 
         add bp, 4
         add bx, 16
@@ -91,40 +97,86 @@ codesg segment
         add bx, 16
         loop wirte_employee_num      ; 继续写入下个年份的数据
 
+
         call clean                   ; 清空屏幕
-        mov cx, 21                   ; 循环21次显示1975~1995年的数据
         mov dh, 1                    ; 从第一行开始显示
         mov bx, 0
-        mov ax, es
+        mov cx, 21
+        mov ax, buffer
         mov ds, ax
-        mov si, bx                   ;　ds:si -> table:0000
 
-    s:
         push cx
-        mov si, bx
-        mov cl, 2                    ; 白底蓝字
-        mov dl, 0
+        mov cl, 2                    ; 黑底绿字
+        mov dl, 0                   ; 显示在第0列
         call show_str                ; 显示年份
 
-        mov si, bx
-        add si, 5
-        mov dl, 20
+sa:     mov si, 0                    ; buffer:0 -> ds:si
+        mov ax, es:[bx + 5]
+        mov dx, es:[bx + 7]          ; (ax)=Low 16 bits, (dx)=Low 16 bits
+        call dtoc                    ; 转换收入为字符串
+
+        push cx
+        mov cl, 2                    ; 黑底绿字
+        mov dl, 20                   ; 显示在第20列
         call show_str                ; 显示收入
 
-        mov si, bx
-        add si, 10                
-        mov dl, 40
+        add si, 0                    ; buffer:0 -> ds:si
+        mov ax, es:[bx + 0ah]
+        mov dx, 0                    ; (ax)=Low 16 bits, (dx)=Low 16 bits
+        call dtoc                    ; 转换收入为字符串
+
+        mov cl, 2                    ; 黑底绿字
+        mov dl, 40                   ; 显示在第40列
         call show_str                ; 显示雇员数
 
-        mov si, bx
-        add si, 13
-        mov dl, 60
+        add si, 0                    ; buffer:0 -> ds:si
+        mov ax, es:[bx + 0dh]
+        mov dx, 0                    ; (ax)=Low 16 bits, (dx)=Low 16 bits
+        call dtoc                    ; 转换人均收入为字符串
+
+        mov cl, 2                    ; 黑底绿字
+        mov dl, 60                   ; 显示在第60列
         call show_str                ; 显示人均收入
 
+        pop cx
         inc dh
         add bx, 16
-        pop cx
-        loop s
+        loop sa
+
+    ;     call clean                   ; 清空屏幕
+    ;     mov cx, 21                   ; 循环21次显示1975~1995年的数据
+    ;     mov dh, 1                    ; 从第一行开始显示
+    ;     mov bx, 0
+    ;     mov ax, es
+    ;     mov ds, ax
+    ;     mov si, bx                   ;　table:0000 -> ds:si
+
+    ; s:
+    ;     push cx
+    ;     mov si, bx
+    ;     mov cl, 2                    ; 白底蓝字
+    ;     mov dl, 0
+    ;     call show_str                ; 显示年份
+
+    ;     mov si, bx
+    ;     add si, 5
+    ;     mov dl, 20
+    ;     call show_str                ; 显示收入
+
+    ;     mov si, bx
+    ;     add si, 10                
+    ;     mov dl, 40
+    ;     call show_str                ; 显示雇员数
+
+    ;     mov si, bx
+    ;     add si, 13
+    ;     mov dl, 60
+    ;     call show_str                ; 显示人均收入
+
+    ;     inc dh
+    ;     add bx, 16
+    ;     pop cx
+    ;     loop s
 
         mov ax, 4c00h
         int 21h
@@ -154,43 +206,26 @@ codesg segment
 
     ; @subroutines
     divdw:
-        push ax
         push bx
-        push cx
-        push dx
-        push ds
-        push es
-        push si
+        push si                        ; 保存父程序环境
 
-        mov ax, 0b800h
-        mov es, ax
-        mov al, 0a0h
-        mul dh
-        mov bx, ax
-        mov al, 2h
-        mul dl
-        add bx, ax
-        mov ah, cl
+        mov bx, dx                     ; 暂存除数高16位
+        mov si, ax                     ; 暂存除数低16位
 
-    s1:
-        mov al, ds:[si]
-        mov es:[bx], ax
-        inc si
-        add bx, 2
+        mov dx, 0
+        mov ax, bx
+        div cx                         ; 求 int(H/N)
+        push ax                        ; 暂存 int(H/N)的值
 
-        mov cl, al
-        mov ch, 0
-        inc cx
-        loop s1
+        mov ax, si
+        div cx                         ; 求 [rem(H/N) * 65536 + L] / N
+
+        mov cx, dx                     ; 余数
+        pop dx                         ; 结果的高16位,低16在ax中保持不变
 
         pop si
-        pop es
-        pop ds
-        pop dx
-        pop cx
         pop bx
-        pop ax                        
-        ret
+        ret                            ; 返回并恢复父程序环境
 
     ; @subroutines
     dtoc:
@@ -198,32 +233,33 @@ codesg segment
         push bx
         push cx
         push dx
-        push si
+        push si                        ; 保存父程序环境
         mov bx, 0
 
-    s2:
+    transf_dtoc_s:
         mov cx, 10
         call divdw
-        inc bx
-        push cx
+        inc bx                         ; 记录求值的次数
+        push cx                        ; 保存余数
 
+    transf_dtoc_high_bit:
         mov cx, dx
-        jcxz s3
-        jmp s2
+        jcxz transf_dtoc_low_bit       ; 检查商的高位是否为0，为零则跳转检查商的低位
+        jmp transf_dtoc_s              ; 继续求值
         
-    s3:
+    transf_dtoc_low_bit:
         mov cx, ax
-        jcxz ok0
-        jmp s2
+        jcxz transf_dtoc_ok            ; 检查商的低位是否为0，如果高位和低位都为零，则表示以除尽
+        jmp transf_dtoc_s              ; 继续求值
         
-    ok0:
-        mov cx, bx
-    s4:
+    transf_dtoc_ok:
+        mov cx, bx                     ; 字符串长度
+    transf_dtoc_s1:
         pop ax
-        add ax, 30h
-        mov ds:[si], al
-        inc si
-        loop s4
+        add ax, 30h                    ; 求值的ASCII码
+        mov ds:[si], al                ; 保存值的ASCII码到内存中
+        inc si                         ; 指针加1
+        loop transf_dtoc_s1            ; 继续转换十进制值为ASCII码
 
         mov ax, 0
         mov ds:[si], al
